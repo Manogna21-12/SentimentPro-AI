@@ -3,8 +3,9 @@ from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassific
 
 model = DistilBertForSequenceClassification.from_pretrained("sentiment_model")
 tokenizer = DistilBertTokenizerFast.from_pretrained("sentiment_model")
+model.eval()
 
-labels = ['Negative', 'Positive']
+labels = ['Negative', 'Neutral', 'Positive']
 
 def predict_sentiment(text):
     text_lower = text.lower()
@@ -23,8 +24,9 @@ def predict_sentiment(text):
                 return "Positive", 0.90
 
     # Model prediction
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    outputs = model(**inputs)
+    with torch.no_grad():
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        outputs = model(**inputs)
 
     probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
     pred = torch.argmax(probs).item()

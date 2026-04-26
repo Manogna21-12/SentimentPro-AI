@@ -5,21 +5,23 @@ from sklearn.model_selection import train_test_split
 from data_loader import load_data
 from preprocessing import preprocess_dataframe
 
-df = load_data("data.csv")
-df = preprocess_dataframe(df)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    df['review_text'], df['label'], test_size=0.2, random_state=42
-)
+if __name__ == "__main__":
+    df = load_data()
+    df = preprocess_dataframe(df)
 
-vectorizer = TfidfVectorizer()
-X_train_vec = vectorizer.fit_transform(X_train)
-X_test_vec = vectorizer.transform(X_test)
+    X_train, X_test, y_train, y_test = train_test_split(
+        df['review_text'], df['label'], test_size=0.2, random_state=42
+    )
 
-model = LogisticRegression()
-model.fit(X_train_vec, y_train)
+    vectorizer = TfidfVectorizer()
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_test_vec = vectorizer.transform(X_test)
 
-preds = model.predict(X_test_vec)
+    model = LogisticRegression()
+    model.fit(X_train_vec, y_train)
 
-print("Baseline Model Results:")
-print(classification_report(y_test, preds))
+    preds = model.predict(X_test_vec)
+
+    print("Baseline Model Results:")
+    print(classification_report(y_test, preds))

@@ -1,588 +1,553 @@
 import streamlit as st
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import matplotlib.pyplot as plt
+import pandas as pd
 from datetime import datetime
+import matplotlib.pyplot as plt
 
-# ==================== PAGE CONFIG ====================
-st.set_page_config(
-    page_title="Sentiment Analysis | Professional AI",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ================= CONFIG =================
+st.set_page_config(page_title="Sentiment Studio Pro", layout="wide")
 
-# ==================== MODEL LOADING ====================
+# ================= MODEL =================
 @st.cache_resource
 def load_model():
     model = AutoModelForSequenceClassification.from_pretrained("sentiment_model")
     tokenizer = AutoTokenizer.from_pretrained("sentiment_model")
+    model.eval()
     return model, tokenizer
 
 model, tokenizer = load_model()
-labels = ['Negative', 'Positive']
+labels = ['Negative', 'Neutral', 'Positive']
 
-# ==================== PROFESSIONAL STYLING ====================
-st.markdown("""
-<style>
-    /* Color Scheme */
-    :root {
-        --primary: #3b2d20;
-        --secondary: #7f5a38;
-        --accent: #d4af37;
-        --accent-light: #f0d177;
-        --gold: #fbbf24;
-        --success: #16a34a;
-        --danger: #dc2626;
-        --text: #f8f1e4;
-        --text-secondary: #e6d8c0;
-    }
-    
-    * {
-        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    /* Main Background */
-    .stApp {
-        background: linear-gradient(135deg, #3b2d20 0%, #865d2f 100%);
-        color: var(--text);
-    }
-    
-    body, div, span, p, h1, h2, h3, h4, h5, h6 {
-        color: var(--text) !important;
-    }
-    
-    /* Header Section */
-    .header-container {
-        background: linear-gradient(135deg, #5d3f24 0%, #8f6d3d 100%);
-        padding: 50px 40px;
-        border-radius: 16px;
-        margin-bottom: 30px;
-        border: 2px solid #d4af37;
-        box-shadow: 0 0 30px rgba(212, 175, 55, 0.18), 0 8px 32px rgba(0, 0, 0, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .header-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(255, 239, 180, 0.05) 100%);
-        pointer-events: none;
-    }
-    
-    .header-title {
-        font-size: 48px;
-        font-weight: 800;
-        background: linear-gradient(135deg, #fbbf24, #d4af37);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin: 0;
-        letter-spacing: -1px;
-        position: relative;
-        z-index: 1;
-    }
-    
-    .header-subtitle {
-        font-size: 16px;
-        color: #f0d177;
-        margin-top: 12px;
-        font-weight: 300;
-        position: relative;
-        z-index: 1;
-    }
-    
-    /* Professional Cards - HIDDEN */
-    .card {
-        background: transparent;
-        padding: 0;
-        border-radius: 14px;
-        box-shadow: none;
-        border: none;
-        margin-bottom: 0;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        color: var(--text);
-    }
-    
-    .card * {
-        color: var(--text) !important;
-    }
-    
-    .card:hover {
-        box-shadow: none;
-        border-color: transparent;
-        transform: none;
-    }
-    
-    /* Input Section */
-    .input-card {
-        background: linear-gradient(135deg, #5f442e 0%, #362617 100%);
-        border: 2px solid rgba(219, 149, 59, 0.35);
-        border-radius: 14px;
-        padding: 32px;
-        margin-bottom: 24px;
-        color: var(--text);
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
-    }
-    
-    .input-card * {
-        color: var(--text) !important;
-    }
-    
-    /* Sentiment Badge */
-    .sentiment-badge {
-        display: inline-block;
-        padding: 12px 28px;
-        border-radius: 30px;
-        font-weight: 700;
-        font-size: 20px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-    
-    .sentiment-positive {
-        background: linear-gradient(135deg, #16a34a, #65a30d);
-        color: #ffffff;
-    }
-    
-    .sentiment-negative {
-        background: linear-gradient(135deg, #dc2626, #ef4444);
-        color: #ffffff;
-    }
-    
-    /* Metric Cards - HIDDEN */
-    .metric-card {
-        background: transparent;
-        padding: 0;
-        border-radius: 12px;
-        border: none;
-        color: var(--text);
-        backdrop-filter: none;
-        box-shadow: none;
-    }
-    
-    .metric-label {
-        font-size: 12px;
-        color: #e6d8c0 !important;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 8px;
-    }
-    
-    .metric-value {
-        font-size: 32px;
-        font-weight: 800;
-        color: #fbbf24 !important;
-        margin-top: 12px;
-        text-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
-    }
-    
-    /* Progress Bar */
-    .confidence-bar {
-        background: rgba(219, 149, 59, 0.12);
-        height: 10px;
-        border-radius: 6px;
-        overflow: hidden;
-        margin-top: 16px;
-        border: 1px solid rgba(219, 149, 59, 0.25);
-    }
-    
-    .confidence-fill {
-        background: linear-gradient(90deg, #d4af37, #fbbf24);
-        height: 100%;
-        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 0 16px rgba(212, 175, 55, 0.4);
-    }
-    
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, #d4af37, #b48f32) !important;
-        color: #3b2d20 !important;
-        border: none !important;
-        padding: 14px 36px !important;
-        border-radius: 10px !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 12px 32px rgba(212, 175, 55, 0.45) !important;
-    }
-    
-    .stButton > button:active {
-        transform: translateY(-1px) !important;
-    }
-    
-    /* Text Input */
-    .stTextArea > div > div > textarea {
-        border-radius: 10px !important;
-        border: 2px solid rgba(219, 149, 59, 0.3) !important;
-        background-color: rgba(63, 48, 33, 0.85) !important;
-        color: var(--text) !important;
-        font-size: 15px !important;
-        padding: 14px !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stTextArea > div > div > textarea:focus {
-        border-color: #d4af37 !important;
-        box-shadow: 0 0 12px rgba(212, 175, 55, 0.35) !important;
-    }
-    
-    .stTextArea > div > div > textarea::placeholder {
-        color: #c6ad8a !important;
-    }
-    
-    /* Sidebar */
-    .stSidebar {
-        background: linear-gradient(135deg, #3b2d20 0%, #7f5a38 100%);
-    }
-    
-    .stSidebar > div {
-        background: transparent !important;
-    }
-    
-    .sidebar-title {
-        font-size: 14px;
-        font-weight: 800;
-        color: #d4af37 !important;
-        margin-top: 24px;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* Section Headers */
-    .section-header {
-        font-size: 20px;
-        font-weight: 800;
-        color: #d4af37 !important;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    /* Footer */
-    .footer {
-        text-align: center;
-        padding: 40px 20px;
-        color: #c6ad8a;
-        font-size: 13px;
-        border-top: 1px solid rgba(219, 149, 59, 0.25);
-        margin-top: 50px;
-    }
-    
-    .footer p {
-        color: #c6ad8a !important;
-    }
-    
-    /* Insights Box */
-    .insights-box {
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(212, 175, 55, 0.05) 100%);
-        padding: 18px;
-        border-radius: 10px;
-        border-left: 4px solid #fbbf24;
-        margin-top: 12px;
-        color: #f8f1e4 !important;
-        backdrop-filter: blur(10px);
-    }
-    
-    .insights-box * {
-        color: #f0d177 !important;
-    }
-    
-    .warning-box {
-        background: linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(248, 113, 113, 0.05) 100%);
-        padding: 18px;
-        border-radius: 10px;
-        border-left: 4px solid #dc2626;
-        color: #fee2e2 !important;
-        backdrop-filter: blur(10px);
-    }
-    
-    .warning-box * {
-        color: #fecaca !important;
-    }
-    
-    /* Streamlit Elements */
-    .stMarkdown {
-        color: var(--text) !important;
-    }
-    
-    .stSubheader {
-        color: var(--text) !important;
-    }
-    
-    .stCaption {
-        color: #e6d8c0 !important;
-    }
-    
-    .stInfo {
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(212, 175, 55, 0.05) 100%) !important;
-        border-left: 4px solid #fbbf24 !important;
-        color: var(--text) !important;
-    }
-    
-    .stWarning {
-        background: linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(248, 113, 113, 0.05) 100%) !important;
-        border-left: 4px solid #dc2626 !important;
-        color: #fecaca !important;
-    }
-    
-    /* Ensure all text is visible */
-    div, p, span {
-        color: var(--text) !important;
-    }
-    
-    /* Scrollbar Styling */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: rgba(219, 149, 59, 0.12);
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #d4af37, #fbbf24);
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, #b48f32, #d4af37);
-    }
-</style>
-""", unsafe_allow_html=True)
+def get_sentiment(pred):
+    """Use the model's actual 3-class prediction directly."""
+    return labels[pred]
 
-# ==================== SIDEBAR ====================
+# ================= STATE =================
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+# ================= SIDEBAR =================
 with st.sidebar:
-    st.markdown("### 🎯 Configuration")
+    st.title("UI Controls")
+    
+    # Theme Toggle
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("🌙 dark", key="theme_dark", use_container_width=True):
+            st.session_state.theme = "dark"
+            st.rerun()
+    with col2:
+        if st.button("☀️ light", key="theme_light", use_container_width=True):
+            st.session_state.theme = "light"
+            st.rerun()
     
     st.markdown("---")
-    st.markdown("**⚙️ Model Information**")
-    st.info("""
-    • **Architecture**: DistilBERT Transformer
-    • **Task**: Binary Classification
-    • **Classes**: Positive | Negative
-    • **Status**: ✅ Production Ready
-    • **Framework**: Hugging Face
-    """)
+    
+    # Example input Section
+    st.subheader("Example input")
+    example = st.selectbox(
+        "",
+        [
+            "None",
+            # Strong positive
+            "This product is amazing!",
+            "Absolutely love it, best purchase ever!",
+            # Strong negative
+            "Worst experience ever",
+            "Completely useless, total waste of money",
+            # Neutral (mixed / factual / ambiguous)
+            "Good quality but terrible service",
+            "The package arrived on the expected date",
+            "Some features work well, others do not",
+            "It has pros and cons like everything else",
+            "I have mixed feelings about this product",
+            "Not what I expected but not terrible either",
+        ],
+        key="example_select"
+    )
     
     st.markdown("---")
-    st.markdown("**📖 How to Use**")
-    st.markdown("""
-    1️⃣ Enter text for analysis
-    2️⃣ Click "Analyze"
-    3️⃣ View sentiment prediction
-    4️⃣ Check confidence score
-    """)
+    
+    # About Section
+    st.subheader("About")
+    st.write("3-class sentiment classification using a locally loaded transformer model.")
+    st.write("• Task: Text polarity")
+    st.write("• Output: Class + confidence")
+    st.write("• Runtime: Local inference")
     
     st.markdown("---")
-    st.markdown("**🔒 About**")
-    st.caption("Professional Sentiment Analysis Tool | Powered by Advanced AI")
+    
+    if st.button("🗑 Clear History", use_container_width=True):
+        st.session_state.history = []
+        st.rerun()
 
-# ==================== MAIN HEADER ====================
+# ================= SIDEBAR CSS =================
+theme = st.session_state.get("theme", "dark")
+
+if theme == "dark":
+    st.markdown("""
+    <style>
+    /* Hide Streamlit toolbar / top bar */
+    [data-testid="stToolbar"] { display: none !important; }
+    header[data-testid="stHeader"] {
+        background: #0f172a !important;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1e293b, #0f172a) !important;
+    }
+    [data-testid="stSidebar"] * { color: #e2e8f0 !important; }
+
+    /* App background */
+    .stApp { background: radial-gradient(circle at top, #0f172a, #020617); color: white; }
+
+    /* Glass card */
+    .glass {
+        background: rgba(255,255,255,0.05);
+        padding: 25px; border-radius: 18px;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Header banner */
+    .header {
+        background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
+        padding: 35px; border-radius: 20px; color: white; margin-bottom: 25px;
+    }
+
+    /* Info cards */
+    .card {
+        background: rgba(255,255,255,0.06);
+        padding: 20px; border-radius: 15px;
+        text-align: center; font-weight: 600;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Buttons */
+    .stButton>button {
+        width: 100%; border-radius: 10px; padding: 12px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white; border: none;
+    }
+
+    /* Text area */
+    textarea {
+        background: #020617 !important; color: white !important;
+        border-radius: 12px !important; border: 1px solid #334155 !important;
+    }
+
+    /* Dataframe */
+    [data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
+    </style>
+    """, unsafe_allow_html=True)
+
+else:
+    st.markdown("""
+    <style>
+    /* ── Streamlit chrome ── */
+    [data-testid="stToolbar"] { display: none !important; }
+    header[data-testid="stHeader"] {
+        background: #ffffff !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+    /* Deploy button text */
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] span { color: #1e293b !important; }
+
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9) !important;
+        border-right: 1px solid #e2e8f0;
+    }
+    [data-testid="stSidebar"] * { color: #1e293b !important; }
+    [data-testid="stSidebar"] .stSelectbox > div > div {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #1e293b !important;
+    }
+
+    /* ── App background ── */
+    .stApp { background: #f8fafc !important; color: #1e293b !important; }
+
+    /* ── Main content area ── */
+    [data-testid="stAppViewContainer"] > section:nth-child(2) {
+        background: #f8fafc !important;
+    }
+
+    /* ── Glass card ── */
+    .glass {
+        background: #ffffff;
+        padding: 25px; border-radius: 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    /* ── Header banner ── */
+    .header {
+        background: linear-gradient(135deg, #3b82f6, #06b6d4);
+        padding: 35px; border-radius: 20px; color: white; margin-bottom: 25px;
+        box-shadow: 0 8px 24px rgba(59,130,246,0.2);
+    }
+
+    /* ── Info cards ── */
+    .card {
+        background: #ffffff;
+        padding: 20px; border-radius: 15px;
+        text-align: center; font-weight: 600;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        color: #1e293b !important;
+    }
+
+    /* ── Buttons ── */
+    .stButton>button {
+        width: 100%; border-radius: 10px; padding: 12px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        color: white !important; border: none;
+    }
+
+    /* ── Text area ── */
+    textarea {
+        background: #ffffff !important; color: #1e293b !important;
+        border-radius: 12px !important; border: 1px solid #cbd5e1 !important;
+    }
+
+    /* ── File uploader ── */
+    [data-testid="stFileUploadDropzone"] {
+        background: #f0f7ff !important;
+        border: 2px dashed #3b82f6 !important;
+        border-radius: 12px !important;
+    }
+    [data-testid="stFileUploadDropzone"] * { color: #1e293b !important; }
+
+    /* ── Tabs ── */
+    [data-testid="stTabs"] button { color: #475569 !important; }
+    [data-testid="stTabs"] button[aria-selected="true"] { color: #3b82f6 !important; }
+
+    /* ── Selectbox / dropdowns ── */
+    [data-testid="stSelectbox"] > div > div {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #1e293b !important;
+    }
+
+    /* ── Metrics ── */
+    [data-testid="stMetric"] { background: #ffffff; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; }
+    [data-testid="stMetricLabel"] * { color: #64748b !important; }
+    [data-testid="stMetricValue"] * { color: #1e293b !important; }
+
+    /* ── Dataframe ── */
+    [data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
+
+    /* ── General text ── */
+    p, span, label, div { color: #1e293b !important; }
+    h1, h2, h3, h4 { color: #0f172a !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ================= HEADER =================
 st.markdown("""
-<div class="header-container">
-    <h1 class="header-title">✨ SENTIMENT ANALYSIS</h1>
-    <p class="header-subtitle">Enterprise-Grade AI-Powered Text Classification | Real-Time Sentiment Detection</p>
+<div class="header">
+    <h1>Sentiment Studio Pro</h1>
+    <p>Premium sentiment analysis interface for product feedback, support tickets, and social comments.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ==================== INPUT SECTION ====================
-st.markdown('<div class="input-card">', unsafe_allow_html=True)
-st.markdown("### 📝 Enter Text for Professional Analysis")
-review = st.text_area(
-    "Paste your review, feedback, or any text here:",
-    height=140,
-    placeholder="E.g., 'This product exceeded my expectations! Outstanding quality and excellent customer service.'",
-    label_visibility="collapsed"
-)
+# ================= TOP CARDS =================
+col1, col2, col3 = st.columns(3)
 
-col1, col2, col3, col4 = st.columns(4)
 with col1:
-    analyze = st.button("🔍 ANALYZE", use_container_width=True)
+    st.markdown('<div class="card">MODEL<br><b>DistilBERT</b></div>', unsafe_allow_html=True)
+
 with col2:
-    clear_btn = st.button("🔄 CLEAR", use_container_width=True)
+    st.markdown('<div class="card">CLASSES<br><b>Positive / Neutral / Negative</b></div>', unsafe_allow_html=True)
+
 with col3:
-    st.empty()
-with col4:
-    st.empty()
+    theme_display = "🌙 Dark" if st.session_state.theme == "dark" else "☀️ Light"
+    st.markdown(f'<div class="card">THEME<br><b>{theme_display}</b></div>', unsafe_allow_html=True)
 
-if clear_btn:
-    st.rerun()
+st.write("")
 
-st.markdown('</div>', unsafe_allow_html=True)
+# ================= TABS =================
+tab1, tab2 = st.tabs(["📝 Single Analysis", "📊 Batch Analysis"])
 
-# ==================== RESULTS SECTION ====================
-if analyze and review.strip():
-    # Process input
-    inputs = tokenizer(review, return_tensors="pt", truncation=True, padding=True)
-    outputs = model(**inputs)
-    
-    probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-    pred = torch.argmax(probs).item()
-    confidence = probs[pred].item()
-    
-    sentiment = labels[pred]
-    neg, pos = probs[0].item(), probs[1].item()
-    
-    # Result Badge
-    badge_class = "sentiment-positive" if sentiment == "Positive" else "sentiment-negative"
-    st.markdown(f"""
-    <div style="text-align: center; margin: 30px 0;">
-        <span class="sentiment-badge {badge_class}">
-            ⭐ {sentiment.upper()} SENTIMENT
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Main Results Grid
-    col1, col2, col3 = st.columns(3)
-    
-    # Left Column - Main Metrics
-    with col1:
-        st.markdown('<div class="metric-label">🎯 Sentiment</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-value">{sentiment}</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="metric-label">📊 Confidence</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-value">{confidence:.0%}</div>', unsafe_allow_html=True)
+with tab1:
+    # ================= MAIN SECTION =================
+    left, right = st.columns([2,1])
+
+    with left:
+        st.markdown('<div class="glass">', unsafe_allow_html=True)
+        st.subheader("Analyze Text")
+
+        # Use example text as default if selected, always show text area
+        default_text = example if example != "None" else ""
+        review = st.text_area("", height=140, placeholder="Enter text to analyze sentiment...", value=default_text)
+
+        colA, colB = st.columns(2)
+        analyze = colA.button("⚡ Analyze", use_container_width=True)
+        clear = colB.button("Clear", use_container_width=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        st.markdown('<div class="glass">', unsafe_allow_html=True)
+        st.subheader("Quick Guide")
+        st.write("1. Enter text in the analyzer panel.")
+        st.write("2. Click Analyze to run inference.")
+        st.write("3. Review confidence and class distribution.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ================= ANALYSIS =================
+    if analyze and review.strip():
+
+        with torch.no_grad():
+            inputs = tokenizer(review, return_tensors="pt", truncation=True, padding=True)
+            outputs = model(**inputs)
+
+        probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
+        pred = torch.argmax(probs).item()
+        confidence = probs[pred].item()
+
+        sentiment = get_sentiment(pred)
+        neg  = probs[0].item()   # index 0 = Negative
+        neu  = probs[1].item()   # index 1 = Neutral
+        pos  = probs[2].item()   # index 2 = Positive
+
+        result = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "text": review,
+            "sentiment": sentiment,
+            "confidence": round(confidence, 4),
+            "positive_probability": round(pos, 4),
+            "neutral_probability": round(neu, 4),
+            "negative_probability": round(neg, 4),
+            "neutral_flag": sentiment == 'Neutral',
+            "word_count": len(review.split()),
+            "character_count": len(review)
+        }
+
+        st.session_state.history.append(result)
         
-        # Confidence bar
-        st.markdown(f"""
-        <div class="confidence-bar">
-            <div class="confidence-fill" style="width: {confidence * 100}%"></div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown('<div class="metric-label">📈 Statistics</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-value">{len(review.split())}</div>', unsafe_allow_html=True)
-        st.markdown(f'<p style="font-size: 12px; color: #e6d8c0; margin-top: 8px;">Words Detected</p>', unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin: 30px 0; height: 2px; background: linear-gradient(90deg, rgba(251, 191, 36, 0), rgba(251, 191, 36, 0.3), rgba(251, 191, 36, 0)); border-radius: 2px;'></div>", unsafe_allow_html=True)
-    
-    # Probability Distribution
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown('<h3 class="section-header">📊 CLASS PROBABILITY</h3>', unsafe_allow_html=True)
+        # Display Results Section
+        st.markdown('<div class="glass">', unsafe_allow_html=True)
+        st.subheader("📊 Analysis Results")
         
-        # Negative
-        st.markdown(f"""
-        <div style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="font-weight: 600; color: #ffffff;">🔴 Negative</span>
-                <span style="color: #cbd5e1; font-weight: 600;">{neg:.1%}</span>
+        # Top metrics row
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if sentiment == 'Positive':
+                sentiment_color = "🟢"
+            elif sentiment == 'Negative':
+                sentiment_color = "🔴"
+            else:
+                sentiment_color = "🟡"
+            st.markdown(f"""
+            <div style="text-align: center; padding: 20px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">SENTIMENT</div>
+                <div style="font-size: 28px; font-weight: bold;">{sentiment_color} {sentiment}</div>
             </div>
-        <div style="background: rgba(251, 191, 36, 0.12); height: 10px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.2);">
-                <div style="background: linear-gradient(90deg, #ef4444, #f97316); height: 100%; width: {neg*100}%; border-radius: 6px; box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
         
-        # Positive
-        st.markdown(f"""
-        <div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="font-weight: 600; color: #ffffff;">🟢 Positive</span>
-                <span style="color: #cbd5e1; font-weight: 600;">{pos:.1%}</span>
+        with col2:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 20px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">CONFIDENCE</div>
+                <div style="font-size: 28px; font-weight: bold;">{confidence*100:.1f}%</div>
             </div>
-        <div style="background: rgba(251, 191, 36, 0.12); height: 10px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(16, 185, 129, 0.2);">
-                <div style="background: linear-gradient(90deg, #16a34a, #65a30d); height: 100%; width: {pos*100}%; border-radius: 6px; box-shadow: 0 0 12px rgba(101, 163, 13, 0.3);"></div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 20px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">WORD COUNT</div>
+                <div style="font-size: 28px; font-weight: bold;">{result['word_count']}</div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        
+        st.markdown("")
+        
+        # Pie chart and probability details
+        col_chart, col_details = st.columns([1.2, 1])
+        
+        with col_chart:
+            fig, ax = plt.subplots(figsize=(6, 5))
+            sizes      = [neg * 100, neu * 100, pos * 100]
+            labels_pie = ['Negative', 'Neutral', 'Positive']
+            colors     = ['#ef4444', '#f59e0b', '#22c55e']
+
+            wedges, texts, autotexts = ax.pie(
+                sizes,
+                labels=labels_pie,
+                autopct='%1.1f%%',
+                colors=colors,
+                startangle=90,
+                textprops={'fontsize': 12, 'weight': 'bold'}
+            )
+            for autotext in autotexts:
+                autotext.set_color('white')
+                autotext.set_fontsize(13)
+                autotext.set_weight('bold')
+            for text in texts:
+                text.set_fontsize(13)
+                text.set_weight('bold')
+
+            ax.set_facecolor('none')
+            fig.patch.set_alpha(0)
+            plt.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+        
+        with col_details:
+            st.markdown("**PROBABILITY BREAKDOWN**")
+
+            st.write(f"🟢 Positive: **{pos*100:.2f}%**")
+            st.progress(pos)
+
+            st.write(f"🟡 Neutral: **{neu*100:.2f}%**")
+            st.progress(neu)
+
+            st.write(f"🔴 Negative: **{neg*100:.2f}%**")
+            st.progress(neg)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+with tab2:
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("📤 Upload File for Batch Analysis")
     
-    with col2:
-        st.markdown('<h3 class="section-header">📈 DISTRIBUTION</h3>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Choose a CSV or TXT file", type=["csv", "txt"], key="batch_upload")
+    
+    if uploaded_file is not None:
+        try:
+            # Handle different file types
+            if uploaded_file.type == "text/plain":
+                # For TXT files, read line by line
+                content = uploaded_file.read().decode("utf-8")
+                texts = [line.strip() for line in content.split('\n') if line.strip()]
+                df_input = pd.DataFrame({"text": texts})
+            else:
+                # For CSV files
+                df_input = pd.read_csv(uploaded_file)
+            
+            # Check if 'text' column exists
+            if 'text' not in df_input.columns:
+                st.error("❌ File must contain a 'text' column (for CSV) or one text per line (for TXT)")
+            else:
+                st.info(f"📋 Loaded {len(df_input)} rows for analysis")
+                
+                if st.button("🚀 Analyze Batch", use_container_width=True):
+                    progress_bar = st.progress(0)
+                    results_batch = []
+                    
+                    for idx, row in df_input.iterrows():
+                        text = str(row['text']).strip()
+                        
+                        if text:
+                            with torch.no_grad():
+                                inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+                                outputs = model(**inputs)
+                            probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
+                            pred = torch.argmax(probs).item()
+                            confidence = probs[pred].item()
+                            
+                            sentiment = get_sentiment(pred)
+                            neg = probs[0].item()
+                            neu = probs[1].item()
+                            pos = probs[2].item()
+                            
+                            results_batch.append({
+                                "text": text,
+                                "sentiment": sentiment,
+                                "confidence": round(confidence, 4),
+                                "positive_probability": round(pos, 4),
+                                "neutral_probability": round(neu, 4),
+                                "negative_probability": round(neg, 4),
+                                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            })
+                        
+                        progress_bar.progress((idx + 1) / len(df_input))
+                    
+                    st.session_state.batch_results = results_batch
+                    st.success(f"✅ Analyzed {len(results_batch)} texts successfully!")
         
-        fig, ax = plt.subplots(figsize=(4, 3))
-        fig.patch.set_alpha(0)
-        ax.set_facecolor('none')
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Display batch results
+    if "batch_results" in st.session_state and st.session_state.batch_results:
+        st.markdown('<div class="glass">', unsafe_allow_html=True)
+        st.subheader("📊 Batch Results")
         
-        colors = ["#ef4444", "#10b981"]
-        explode = (0.08, 0.08) if max(neg, pos) > 0.7 else (0, 0)
+        df_results = pd.DataFrame(st.session_state.batch_results)
         
-        wedges, texts, autotexts = ax.pie(
-            [neg, pos],
-            labels=["Negative", "Positive"],
-            autopct="%1.1f%%",
-            colors=colors,
-            explode=explode,
-            startangle=90,
-            textprops={'color': '#ffffff', 'fontsize': 11, 'weight': 'bold'},
-            wedgeprops={'edgecolor': '#d4af37', 'linewidth': 2}
+        # Summary statistics
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            positive_count = len(df_results[df_results['sentiment'] == 'Positive'])
+            st.metric("🟢 Positive", positive_count)
+        
+        with col2:
+            negative_count = len(df_results[df_results['sentiment'] == 'Negative'])
+            st.metric("🔴 Negative", negative_count)
+        
+        with col3:
+            neutral_count = len(df_results[df_results['sentiment'] == 'Neutral'])
+            st.metric("🟡 Neutral", neutral_count)
+        
+        with col4:
+            avg_confidence = df_results['confidence'].mean()
+            st.metric("Avg Confidence", f"{avg_confidence*100:.1f}%")
+        
+        with col5:
+            total_texts = len(df_results)
+            st.metric("Total Texts", total_texts)
+        
+        st.markdown("")
+        
+        # Results table
+        st.dataframe(df_results, use_container_width=True)
+        
+        # Download results
+        csv_results = df_results.to_csv(index=False)
+        st.download_button(
+            "📥 Download Results (CSV)",
+            csv_results,
+            "batch_results.csv",
+            "text/csv",
+            use_container_width=True
         )
         
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_weight('bold')
-        
-        ax.axis('equal')
-        st.pyplot(fig, transparent=True, use_container_width=True)
-    
-    # Insights Section
-    st.markdown("<div style='margin: 30px 0; height: 2px; background: linear-gradient(90deg, rgba(251, 191, 36, 0), rgba(251, 191, 36, 0.3), rgba(251, 191, 36, 0)); border-radius: 2px;'></div>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown('<h3 class="section-header">💡 INSIGHTS</h3>', unsafe_allow_html=True)
-        
-        if confidence >= 0.85:
-            st.markdown('<div class="insights-box">✅ <b>HIGHLY CONFIDENT</b> - Clear and strong sentiment indicators detected.</div>', unsafe_allow_html=True)
-        elif confidence >= 0.65:
-            st.markdown('<div class="insights-box">ℹ️ <b>MODERATE CONFIDENCE</b> - Reasonable prediction with some mixed sentiment.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="warning-box">⚠️ <b>LOW CONFIDENCE</b> - Mixed or ambiguous sentiment detected in text.</div>', unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="insights-box" style="margin-top: 12px;">
-        📝 <b>TEXT STATISTICS:</b><br>
-        • Total Words: {len(review.split())}<br>
-        • Character Count: {len(review)}<br>
-        • Average Word Length: {len(review)/len(review.split()):.1f} chars
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<h3 class="section-header">🔧 MODEL INFO</h3>', unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="insights-box">
-        <b>⏰ Timestamp:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
-        <b>🤖 Model Version:</b> DistilBERT v1.0<br>
-        <b>⚙️ Framework:</b> Hugging Face Transformers<br>
-        <b>✅ Status:</b> Analysis Complete
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-elif analyze and not review.strip():
-    st.error("⚠️ Please enter text to analyze before processing.")
+# ================= HISTORY =================
+st.markdown('<div class="glass">', unsafe_allow_html=True)
+st.subheader("📋 Prediction History")
 
-# ==================== FOOTER ====================
-st.markdown("""
-<div class="footer">
-    <p><strong>Professional Sentiment Analysis Platform</strong> | Enterprise-Grade AI Solutions</p>
-    <p style="margin-top: 12px; font-size: 11px;">Powered by DistilBERT • Hugging Face Transformers • Streamlit</p>
-    <p style="margin-top: 8px; font-size: 10px;">© 2026 Advanced AI Solutions. All rights reserved. | Enterprise Edition</p>
-</div>
-""", unsafe_allow_html=True)
+if st.session_state.history:
+    df = pd.DataFrame(st.session_state.history)
+    st.dataframe(df, use_container_width=True)
+    
+    # Download history
+    csv_history = df.to_csv(index=False)
+    st.download_button(
+        "📥 Download History (CSV)",
+        csv_history,
+        "prediction_history.csv",
+        "text/csv",
+        use_container_width=True
+    )
+else:
+    st.info("No predictions yet. Start analyzing text to build history.")
+
+st.markdown('</div>', unsafe_allow_html=True)

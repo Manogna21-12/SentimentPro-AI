@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
@@ -7,42 +8,46 @@ from datasets import Dataset
 from data_loader import load_data
 from preprocessing import preprocess_dataframe
 
-# Load model
-model = DistilBertForSequenceClassification.from_pretrained("sentiment_model")
-tokenizer = DistilBertTokenizerFast.from_pretrained("sentiment_model")
 
-df = load_data("data.csv")
-df = preprocess_dataframe(df)
+if __name__ == "__main__":
+    # Load model
+    model = DistilBertForSequenceClassification.from_pretrained("sentiment_model")
+    tokenizer = DistilBertTokenizerFast.from_pretrained("sentiment_model")
+    model.eval()
 
-dataset = Dataset.from_pandas(df)
+    df = load_data()
+    df = preprocess_dataframe(df)
 
-def tokenize(batch):
-    return tokenizer(batch['review_text'], padding=True, truncation=True)
+    dataset = Dataset.from_pandas(df)
 
-dataset = dataset.map(tokenize, batched=True)
-dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
+    def tokenize(batch):
+        return tokenizer(batch['review_text'], padding=True, truncation=True)
 
-# Predictions
-preds = []
-true = []
+    dataset = dataset.map(tokenize, batched=True)
+    dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
 
-for item in dataset:
-    inputs = {
-        "input_ids": item['input_ids'].unsqueeze(0),
-        "attention_mask": item['attention_mask'].unsqueeze(0)
-    }
-    outputs = model(**inputs)
-    pred = np.argmax(outputs.logits.detach().numpy())
-    
-    preds.append(pred)
-    true.append(item['label'])
+    # Predictions
+    preds = []
+    true = []
 
-# Report
-print(classification_report(true, preds))
+    with torch.no_grad():
+        for item in dataset:
+            inputs = {
+                "input_ids": item['input_ids'].unsqueeze(0),
+                "attention_mask": item['attention_mask'].unsqueeze(0)
+            }
+            outputs = model(**inputs)
+            pred = np.argmax(outputs.logits.numpy())
 
-# Confusion Matrix
-cm = confusion_matrix(true, preds)
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.show()
+            preds.append(pred)
+            true.append(item['label'].item())
+
+    # Report
+    print(classification_report(true, preds))
+
+    # Confusion Matrix
+    cm = confusion_matrix(true, preds)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
