@@ -16,17 +16,6 @@
   "n_heads": 12,
   "n_layers": 6,
   "pad_token_id": 0,
-  "num_labels": 3,
-  "id2label": {
-    "0": "Negative",
-    "1": "Neutral",
-    "2": "Positive"
-  },
-  "label2id": {
-    "Negative": 0,
-    "Neutral": 1,
-    "Positive": 2
-  },
   "problem_type": "single_label_classification",
   "qa_dropout": 0.1,
   "seq_classif_dropout": 0.2,

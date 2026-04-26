@@ -4,8 +4,12 @@ from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassific
 model = DistilBertForSequenceClassification.from_pretrained("sentiment_model")
 tokenizer = DistilBertTokenizerFast.from_pretrained("sentiment_model")
 model.eval()
+num_labels = model.config.num_labels
 
-labels = ['Negative', 'Neutral', 'Positive']
+if num_labels == 3:
+    labels = ['Negative', 'Neutral', 'Positive']
+else:
+    labels = ['Negative', 'Positive']
 
 def predict_sentiment(text):
     text_lower = text.lower()

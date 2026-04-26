@@ -17,10 +17,34 @@ def load_model():
     return model, tokenizer
 
 model, tokenizer = load_model()
-labels = ['Negative', 'Neutral', 'Positive']
+num_labels = model.config.num_labels
 
-def get_sentiment(pred):
-    """Use the model's actual 3-class prediction directly."""
+# Adapt labels to actual model output
+if num_labels == 3:
+    labels = ['Negative', 'Neutral', 'Positive']
+else:
+    labels = ['Negative', 'Positive']
+
+def extract_probs(probs):
+    """Extract neg/neu/pos probabilities, adapting to 2-class or 3-class model."""
+    if num_labels == 3:
+        neg = probs[0].item()
+        neu = probs[1].item()
+        pos = probs[2].item()
+    else:
+        neg = probs[0].item()
+        pos = probs[1].item()
+        neu = 0.0  # No native neutral class
+    return neg, neu, pos
+
+def get_sentiment(pred, confidence):
+    """Map prediction index to label. For 2-class models, use confidence
+    threshold to synthesize a Neutral class."""
+    if num_labels == 3:
+        return labels[pred]
+    # 2-class model: low confidence → Neutral
+    if confidence < 0.60:
+        return 'Neutral'
     return labels[pred]
 
 # ================= STATE =================
@@ -315,10 +339,8 @@ with tab1:
         pred = torch.argmax(probs).item()
         confidence = probs[pred].item()
 
-        sentiment = get_sentiment(pred)
-        neg  = probs[0].item()   # index 0 = Negative
-        neu  = probs[1].item()   # index 1 = Neutral
-        pos  = probs[2].item()   # index 2 = Positive
+        sentiment = get_sentiment(pred, confidence)
+        neg, neu, pos = extract_probs(probs)
 
         result = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -458,10 +480,8 @@ with tab2:
                             pred = torch.argmax(probs).item()
                             confidence = probs[pred].item()
                             
-                            sentiment = get_sentiment(pred)
-                            neg = probs[0].item()
-                            neu = probs[1].item()
-                            pos = probs[2].item()
+                            sentiment = get_sentiment(pred, confidence)
+                            neg, neu, pos = extract_probs(probs)
                             
                             results_batch.append({
                                 "text": text,
