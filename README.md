@@ -29,14 +29,14 @@ pip install -r requirements.txt
 ### Running the App
 To launch the Sentiment Studio Pro web interface, simply run:
 ```bash
-streamlit run app.py
+py -m streamlit run app.py
 ```
 This will open the application in your default web browser (usually at `localhost:8502`).
 
 ### Quick CLI Testing
 If you want to test the model quickly in your terminal without the UI:
 ```bash
-python predict.py
+py predict.py
 ```
 
 ## 🎨 UI Highlights
