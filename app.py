@@ -97,20 +97,9 @@ def run_inference(text):
 # ================= STATE =================
 if "history" not in st.session_state:
     st.session_state.history = []
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
-
 # ================= SIDEBAR =================
 with st.sidebar:
-    st.title("Theme")
-    
-    # Theme Toggle
-    theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.get("theme", "dark") == "dark" else 1, horizontal=True, label_visibility="collapsed")
-    if theme_choice != st.session_state.get("theme", "dark"):
-        st.session_state.theme = theme_choice
-        st.rerun()
-    
-    st.markdown("---")
+    # Example input Section
     
     # Example input Section
     st.subheader("Example input")
@@ -151,10 +140,7 @@ with st.sidebar:
         st.rerun()
 
 # ================= SIDEBAR CSS =================
-theme = st.session_state.get("theme", "dark")
-
-if theme == "dark":
-    st.markdown("""
+st.markdown("""
     <style>
     /* Hide Streamlit toolbar / top bar */
     [data-testid="stToolbar"] { display: none !important; }
@@ -214,171 +200,6 @@ if theme == "dark":
     </style>
     """, unsafe_allow_html=True)
 
-else:
-    st.markdown("""
-    <style>
-    /* ── Streamlit chrome ── */
-    [data-testid="stToolbar"] { display: none !important; }
-    header[data-testid="stHeader"] {
-        background: rgba(255, 255, 255, 0.7) !important;
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-    }
-    /* Deploy button text */
-    header[data-testid="stHeader"] button,
-    header[data-testid="stHeader"] span { color: #1e293b !important; }
-
-    /* ── Sidebar ── */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-        border-right: 1px solid rgba(0,0,0,0.03);
-    }
-    [data-testid="stSidebar"] * { color: #334155 !important; }
-    [data-testid="stSidebar"] .stSelectbox > div > div {
-        background: rgba(255,255,255,0.6) !important;
-        border: 1px solid #e2e8f0 !important;
-        color: #0f172a !important;
-        border-radius: 8px;
-    }
-
-    /* ── App background ── */
-    .stApp { background: transparent !important; color: #334155 !important; }
-
-    /* ── Main content area ── */
-    [data-testid="stAppViewContainer"] > section:nth-child(2) {
-        background: linear-gradient(135deg, #f0f9ff 0%, #fdf4ff 50%, #eff6ff 100%) !important;
-    }
-
-    /* ── Glass card ── */
-    .glass {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(243, 232, 255, 0.8) 80%, rgba(224, 231, 255, 0.8) 100%);
-        backdrop-filter: blur(10px);
-        padding: 30px; border-radius: 24px;
-        border: 1px solid rgba(255,255,255,1);
-        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-    }
-
-    /* ── Header banner ── */
-    .header {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(252, 231, 243, 0.8) 80%, rgba(224, 242, 254, 0.8) 100%);
-        backdrop-filter: blur(10px);
-        padding: 40px; border-radius: 24px; color: #0f172a !important; margin-bottom: 30px;
-        border: 1px solid rgba(255,255,255,1);
-        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-        position: relative;
-        overflow: hidden;
-    }
-    .header::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
-    }
-    .header h1 { color: #0f172a !important; font-weight: 800; font-size: 2.5rem; margin-bottom: 10px; }
-    .header p { color: #475569 !important; font-size: 1.1rem; }
-
-    /* ── Info cards ── */
-    .card {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(219, 234, 254, 0.6) 100%);
-        backdrop-filter: blur(10px);
-        padding: 24px; border-radius: 20px;
-        text-align: center; font-weight: 600;
-        border: 1px solid rgba(255,255,255,1);
-        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-        color: #64748b !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        font-size: 0.9rem;
-    }
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.08);
-    }
-    .card b {
-        color: #0f172a !important;
-        font-size: 1.2rem;
-        display: block;
-        margin-top: 8px;
-    }
-
-    /* ── Buttons ── */
-    .stButton>button {
-        width: 100%; border-radius: 12px; padding: 12px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #6366f1, #a855f7) !important;
-        color: white !important; border: none;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        transition: all 0.2s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
-    }
-
-    /* ── Text area ── */
-    textarea {
-        background: rgba(255,255,255,0.8) !important; color: #0f172a !important;
-        border-radius: 16px !important; border: 1px solid rgba(0,0,0,0.05) !important;
-        padding: 16px !important;
-        transition: all 0.2s ease;
-    }
-    textarea:focus {
-        border-color: #8b5cf6 !important;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
-        background: #ffffff !important;
-    }
-
-    /* ── File uploader ── */
-    [data-testid="stFileUploadDropzone"] {
-        background: rgba(255,255,255,0.7) !important;
-        border: 2px dashed rgba(139, 92, 246, 0.3) !important;
-        border-radius: 16px !important;
-        transition: all 0.2s ease;
-    }
-    [data-testid="stFileUploadDropzone"]:hover {
-        border-color: #8b5cf6 !important;
-        background: rgba(255,255,255,0.95) !important;
-    }
-    [data-testid="stFileUploadDropzone"] * { color: #334155 !important; }
-
-    /* ── Tabs ── */
-    [data-testid="stTabs"] button { color: #64748b !important; font-weight: 600 !important; }
-    [data-testid="stTabs"] button[aria-selected="true"] { color: #8b5cf6 !important; border-bottom-color: #8b5cf6 !important; }
-
-    /* ── Selectbox / dropdowns ── */
-    [data-testid="stSelectbox"] > div > div {
-        background: rgba(255,255,255,0.8) !important;
-        border: 1px solid rgba(0,0,0,0.05) !important;
-        color: #0f172a !important;
-        border-radius: 10px;
-    }
-
-    /* ── Metrics ── */
-    [data-testid="stMetric"] { 
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(240, 253, 244, 0.6) 100%);
-        border-radius: 16px; padding: 16px; 
-        border: 1px solid rgba(255,255,255,1); 
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    }
-    [data-testid="stMetricLabel"] * { color: #64748b !important; font-weight: 500; }
-    [data-testid="stMetricValue"] * { color: #0f172a !important; font-weight: 800; }
-
-    /* ── Dataframe ── */
-    [data-testid="stDataFrame"] { border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.05); }
-
-    /* ── Expander ── */
-    [data-testid="stExpander"] {
-        border-radius: 16px !important;
-        border: 1px solid rgba(0,0,0,0.05) !important;
-        background: rgba(255,255,255,0.8) !important;
-    }
-
-    /* ── General text ── */
-    p, span, label, div { color: #334155 !important; }
-    h1, h2, h3, h4 { color: #0f172a !important; font-weight: 700; }
-    </style>
-    """, unsafe_allow_html=True)
-
 # ================= HEADER =================
 st.markdown("""
 <div class="header">
@@ -397,8 +218,7 @@ with col2:
     st.markdown('<div class="card">CLASSES<br><b>Positive / Neutral / Negative</b></div>', unsafe_allow_html=True)
 
 with col3:
-    theme_display = " Dark" if st.session_state.theme == "dark" else "Light"
-    st.markdown(f'<div class="card">THEME<br><b>{theme_display}</b></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card">THEME<br><b>Dark</b></div>', unsafe_allow_html=True)
 
 st.write("")
 
