@@ -14,6 +14,17 @@ else:
 def predict_sentiment(text):
     text_lower = text.lower()
 
+    # Add a list of neutral keywords
+    neutral_keywords = [
+        "okay", "fine", "average", "not bad", "so so", "nothing special",
+        "as expected", "normal", "decent", "fair", "moderate",
+        "satisfactory", "it works", "no issues", "acceptable"
+    ]
+
+    # Before applying model-based classification, check for neutral keywords
+    if any(keyword in text_lower for keyword in neutral_keywords):
+        return "Neutral", 1.0
+
     # 🔥 Rule-based boost for short inputs
     strong_positive = ["good", "great", "excellent", "awesome", "amazing", "perfect", "love"]
     strong_negative = ["bad", "worst", "terrible", "awful", "poor", "hate"]
@@ -33,10 +44,23 @@ def predict_sentiment(text):
         outputs = model(**inputs)
 
     probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-    pred = torch.argmax(probs).item()
-    confidence = probs[pred].item()
+    confidence = max(probs).item()
+    
+    # Calculate score based on positive vs negative probabilities
+    if num_labels == 3:
+        score = probs[2].item() - probs[0].item()
+    else:
+        score = probs[1].item() - probs[0].item()
 
-    return labels[pred], confidence
+    # Use threshold-based classification
+    if score > 0.2:
+        sentiment = "Positive"
+    elif score < -0.2:
+        sentiment = "Negative"
+    else:
+        sentiment = "Neutral"
+
+    return sentiment, confidence
 
 
 if __name__ == "__main__":

@@ -46,6 +46,19 @@ def get_sentiment(pred, confidence):
 
 def run_inference(text):
     text_lower = text.lower()
+    
+    # Add a list of neutral keywords
+    neutral_keywords = [
+        "okay", "fine", "average", "not bad", "so so", "nothing special",
+        "as expected", "normal", "decent", "fair", "moderate",
+        "satisfactory", "it works", "no issues", "acceptable"
+    ]
+
+    # Before applying model-based classification, check for neutral keywords
+    if any(keyword in text_lower for keyword in neutral_keywords):
+        return "Neutral", 1.0, 0.0, 1.0, 0.0
+
+    # Keep existing rule-based logic for short inputs
     strong_positive = ["good", "great", "excellent", "awesome", "amazing", "perfect", "love"]
     strong_negative = ["bad", "worst", "terrible", "awful", "poor", "hate"]
 
@@ -65,11 +78,20 @@ def run_inference(text):
         outputs = model(**inputs)
 
     probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-    pred = torch.argmax(probs).item()
-    confidence = probs[pred].item()
-
-    sentiment = get_sentiment(pred, confidence)
     neg, neu, pos = extract_probs(probs)
+    confidence = max(probs).item()
+
+    # Calculate score based on positive vs negative probabilities
+    score = pos - neg
+
+    # Use threshold-based classification
+    if score > 0.2:
+        sentiment = "Positive"
+    elif score < -0.2:
+        sentiment = "Negative"
+    else:
+        sentiment = "Neutral"
+
     return sentiment, confidence, neg, neu, pos
 
 # ================= STATE =================
@@ -80,7 +102,7 @@ if "theme" not in st.session_state:
 
 # ================= SIDEBAR =================
 with st.sidebar:
-    st.title("UI Controls")
+    st.title("Theme")
     
     # Theme Toggle
     theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.get("theme", "dark") == "dark" else 1, horizontal=True, label_visibility="collapsed")
@@ -198,8 +220,9 @@ else:
     /* ── Streamlit chrome ── */
     [data-testid="stToolbar"] { display: none !important; }
     header[data-testid="stHeader"] {
-        background: #ffffff !important;
-        border-bottom: 1px solid #e2e8f0 !important;
+        background: rgba(255, 255, 255, 0.7) !important;
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
     }
     /* Deploy button text */
     header[data-testid="stHeader"] button,
@@ -207,94 +230,152 @@ else:
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: linear-gradient(135deg, #dbeafe, #ccfbf1) !important;
-        border-right: 1px solid #e2e8f0;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        border-right: 1px solid rgba(0,0,0,0.03);
     }
-    [data-testid="stSidebar"] * { color: #1e293b !important; }
+    [data-testid="stSidebar"] * { color: #334155 !important; }
     [data-testid="stSidebar"] .stSelectbox > div > div {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #1e293b !important;
+        background: rgba(255,255,255,0.6) !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+        border-radius: 8px;
     }
 
     /* ── App background ── */
-    .stApp { background: #f8fafc !important; color: #1e293b !important; }
+    .stApp { background: transparent !important; color: #334155 !important; }
 
     /* ── Main content area ── */
     [data-testid="stAppViewContainer"] > section:nth-child(2) {
-        background: #f8fafc !important;
+        background: linear-gradient(135deg, #f0f9ff 0%, #fdf4ff 50%, #eff6ff 100%) !important;
     }
 
     /* ── Glass card ── */
     .glass {
-        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
-        padding: 25px; border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(243, 232, 255, 0.8) 80%, rgba(224, 231, 255, 0.8) 100%);
+        backdrop-filter: blur(10px);
+        padding: 30px; border-radius: 24px;
+        border: 1px solid rgba(255,255,255,1);
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
     }
 
     /* ── Header banner ── */
     .header {
-        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
-        padding: 35px; border-radius: 20px; color: #0f172a !important; margin-bottom: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(252, 231, 243, 0.8) 80%, rgba(224, 242, 254, 0.8) 100%);
+        backdrop-filter: blur(10px);
+        padding: 40px; border-radius: 24px; color: #0f172a !important; margin-bottom: 30px;
+        border: 1px solid rgba(255,255,255,1);
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
     }
-    .header h1, .header p { color: #0f172a !important; }
+    .header::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    }
+    .header h1 { color: #0f172a !important; font-weight: 800; font-size: 2.5rem; margin-bottom: 10px; }
+    .header p { color: #475569 !important; font-size: 1.1rem; }
 
     /* ── Info cards ── */
     .card {
-        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
-        padding: 20px; border-radius: 15px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(219, 234, 254, 0.6) 100%);
+        backdrop-filter: blur(10px);
+        padding: 24px; border-radius: 20px;
         text-align: center; font-weight: 600;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-        color: #1e293b !important;
+        border: 1px solid rgba(255,255,255,1);
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+        color: #64748b !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        font-size: 0.9rem;
+    }
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.08);
+    }
+    .card b {
+        color: #0f172a !important;
+        font-size: 1.2rem;
+        display: block;
+        margin-top: 8px;
     }
 
     /* ── Buttons ── */
     .stButton>button {
-        width: 100%; border-radius: 10px; padding: 12px;
+        width: 100%; border-radius: 12px; padding: 12px;
         font-weight: 600;
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        background: linear-gradient(135deg, #6366f1, #a855f7) !important;
         color: white !important; border: none;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        transition: all 0.2s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
     }
 
     /* ── Text area ── */
     textarea {
-        background: #ffffff !important; color: #1e293b !important;
-        border-radius: 12px !important; border: 1px solid #cbd5e1 !important;
+        background: rgba(255,255,255,0.8) !important; color: #0f172a !important;
+        border-radius: 16px !important; border: 1px solid rgba(0,0,0,0.05) !important;
+        padding: 16px !important;
+        transition: all 0.2s ease;
+    }
+    textarea:focus {
+        border-color: #8b5cf6 !important;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+        background: #ffffff !important;
     }
 
     /* ── File uploader ── */
     [data-testid="stFileUploadDropzone"] {
-        background: #f0f7ff !important;
-        border: 2px dashed #3b82f6 !important;
-        border-radius: 12px !important;
+        background: rgba(255,255,255,0.7) !important;
+        border: 2px dashed rgba(139, 92, 246, 0.3) !important;
+        border-radius: 16px !important;
+        transition: all 0.2s ease;
     }
-    [data-testid="stFileUploadDropzone"] * { color: #1e293b !important; }
+    [data-testid="stFileUploadDropzone"]:hover {
+        border-color: #8b5cf6 !important;
+        background: rgba(255,255,255,0.95) !important;
+    }
+    [data-testid="stFileUploadDropzone"] * { color: #334155 !important; }
 
     /* ── Tabs ── */
-    [data-testid="stTabs"] button { color: #475569 !important; }
-    [data-testid="stTabs"] button[aria-selected="true"] { color: #3b82f6 !important; }
+    [data-testid="stTabs"] button { color: #64748b !important; font-weight: 600 !important; }
+    [data-testid="stTabs"] button[aria-selected="true"] { color: #8b5cf6 !important; border-bottom-color: #8b5cf6 !important; }
 
     /* ── Selectbox / dropdowns ── */
     [data-testid="stSelectbox"] > div > div {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #1e293b !important;
+        background: rgba(255,255,255,0.8) !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        color: #0f172a !important;
+        border-radius: 10px;
     }
 
     /* ── Metrics ── */
-    [data-testid="stMetric"] { background: #ffffff; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; }
-    [data-testid="stMetricLabel"] * { color: #64748b !important; }
-    [data-testid="stMetricValue"] * { color: #1e293b !important; }
+    [data-testid="stMetric"] { 
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 40%, rgba(240, 253, 244, 0.6) 100%);
+        border-radius: 16px; padding: 16px; 
+        border: 1px solid rgba(255,255,255,1); 
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+    [data-testid="stMetricLabel"] * { color: #64748b !important; font-weight: 500; }
+    [data-testid="stMetricValue"] * { color: #0f172a !important; font-weight: 800; }
 
     /* ── Dataframe ── */
-    [data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
+    [data-testid="stDataFrame"] { border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.05); }
+
+    /* ── Expander ── */
+    [data-testid="stExpander"] {
+        border-radius: 16px !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        background: rgba(255,255,255,0.8) !important;
+    }
 
     /* ── General text ── */
-    p, span, label, div { color: #1e293b !important; }
-    h1, h2, h3, h4 { color: #0f172a !important; }
+    p, span, label, div { color: #334155 !important; }
+    h1, h2, h3, h4 { color: #0f172a !important; font-weight: 700; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -316,13 +397,13 @@ with col2:
     st.markdown('<div class="card">CLASSES<br><b>Positive / Neutral / Negative</b></div>', unsafe_allow_html=True)
 
 with col3:
-    theme_display = "🌙 Dark" if st.session_state.theme == "dark" else "☀️ Light"
+    theme_display = " Dark" if st.session_state.theme == "dark" else "Light"
     st.markdown(f'<div class="card">THEME<br><b>{theme_display}</b></div>', unsafe_allow_html=True)
 
 st.write("")
 
 # ================= TABS =================
-tab1, tab2 = st.tabs(["📝 Single Analysis", "📊 Batch Analysis"])
+tab1, tab2 = st.tabs(["Single Analysis", "Batch Analysis"])
 
 with tab1:
     # ================= MAIN SECTION =================
@@ -337,7 +418,7 @@ with tab1:
         review = st.text_area("", height=140, placeholder="Enter text to analyze sentiment...", value=default_text)
 
         colA, colB = st.columns(2)
-        analyze = colA.button("⚡ Analyze", use_container_width=True)
+        analyze = colA.button("Analyze", use_container_width=True)
         clear = colB.button("Clear", use_container_width=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -372,7 +453,7 @@ with tab1:
         
         # Display Results Section
         st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("📊 Analysis Results")
+        st.subheader(" Analysis Results")
         
         # Top metrics row
         col1, col2, col3 = st.columns(3)
@@ -456,7 +537,7 @@ with tab1:
 
 with tab2:
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📥 Batch Analysis Input")
+    st.subheader("Batch Analysis Input")
     
     input_method = st.radio("Choose input method:", ["Paste Text", "Upload File"], horizontal=True)
     
@@ -468,7 +549,7 @@ with tab2:
             texts = [line.strip() for line in batch_text.split('\n') if line.strip()]
             if texts:
                 df_input = pd.DataFrame({"text": texts})
-                st.info(f"📋 Loaded {len(df_input)} reviews for analysis")
+                st.info(f"Loaded {len(df_input)} reviews for analysis")
     else:
         uploaded_file = st.file_uploader("Choose a CSV or TXT file", type=["csv", "txt"], key="batch_upload")
         if uploaded_file is not None:
@@ -485,16 +566,16 @@ with tab2:
                 
                 # Check if 'text' column exists
                 if 'text' not in df_input.columns:
-                    st.error("❌ File must contain a 'text' column (for CSV) or one text per line (for TXT)")
+                    st.error(" File must contain a 'text' column (for CSV) or one text per line (for TXT)")
                     df_input = None
                 else:
                     st.info(f"📋 Loaded {len(df_input)} rows for analysis")
             except Exception as e:
-                st.error(f"❌ Error processing file: {str(e)}")
+                st.error(f"Error processing file: {str(e)}")
                 df_input = None
                 
     if df_input is not None and not df_input.empty:
-        if st.button("🚀 Analyze Batch", use_container_width=True):
+        if st.button(" Analyze Batch", use_container_width=True):
                     progress_bar = st.progress(0)
                     results_batch = []
                     
@@ -517,7 +598,7 @@ with tab2:
                         progress_bar.progress((idx + 1) / len(df_input))
                     
                     st.session_state.batch_results = results_batch
-                    st.success(f"✅ Analyzed {len(results_batch)} texts successfully!")
+                    st.success(f" Analyzed {len(results_batch)} texts successfully!")
         
 
     
@@ -526,7 +607,7 @@ with tab2:
     # Display batch results
     if "batch_results" in st.session_state and st.session_state.batch_results:
         st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("📊 Batch Results")
+        st.subheader(" Batch Results")
         
         df_results = pd.DataFrame(st.session_state.batch_results)
         
@@ -561,7 +642,7 @@ with tab2:
         # Download results
         csv_results = df_results.to_csv(index=False)
         st.download_button(
-            "📥 Download Results (CSV)",
+            "Download Results (CSV)",
             csv_results,
             "batch_results.csv",
             "text/csv",
@@ -572,7 +653,7 @@ with tab2:
 
 # ================= HISTORY =================
 st.markdown('<div class="glass">', unsafe_allow_html=True)
-st.subheader("📋 Prediction History")
+st.subheader("Prediction History")
 
 if st.session_state.history:
     df = pd.DataFrame(st.session_state.history)
@@ -581,7 +662,7 @@ if st.session_state.history:
     # Download history
     csv_history = df.to_csv(index=False)
     st.download_button(
-        "📥 Download History (CSV)",
+        " Download History (CSV)",
         csv_history,
         "prediction_history.csv",
         "text/csv",
