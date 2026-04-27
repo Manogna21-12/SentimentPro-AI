@@ -6,7 +6,8 @@ def load_data():
 
     df = pd.DataFrame(dataset['train'])
 
-    print("Columns:", df.columns)  # debug once
+    print("Columns:", df.columns.tolist())
+    print("Label distribution:\n", df['label'].value_counts())
     print(df.head())
 
     return df

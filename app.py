@@ -38,14 +38,39 @@ def extract_probs(probs):
     return neg, neu, pos
 
 def get_sentiment(pred, confidence):
-    """Map prediction index to label. For 2-class models, use confidence
-    threshold to synthesize a Neutral class."""
+    """Map prediction index to label."""
     if num_labels == 3:
         return labels[pred]
-    # 2-class model: low confidence → Neutral
-    if confidence < 0.60:
-        return 'Neutral'
+    # 2-class model: return predicted label directly instead of defaulting to Neutral
     return labels[pred]
+
+def run_inference(text):
+    text_lower = text.lower()
+    strong_positive = ["good", "great", "excellent", "awesome", "amazing", "perfect", "love"]
+    strong_negative = ["bad", "worst", "terrible", "awful", "poor", "hate"]
+
+    words = text_lower.split()
+
+    if len(words) <= 3:
+        for word in words:
+            if word in strong_negative:
+                if num_labels == 3: return "Negative", 0.90, 0.90, 0.05, 0.05
+                else: return "Negative", 0.90, 0.90, 0.0, 0.10
+            if word in strong_positive:
+                if num_labels == 3: return "Positive", 0.90, 0.05, 0.05, 0.90
+                else: return "Positive", 0.90, 0.10, 0.0, 0.90
+
+    with torch.no_grad():
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        outputs = model(**inputs)
+
+    probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
+    pred = torch.argmax(probs).item()
+    confidence = probs[pred].item()
+
+    sentiment = get_sentiment(pred, confidence)
+    neg, neu, pos = extract_probs(probs)
+    return sentiment, confidence, neg, neu, pos
 
 # ================= STATE =================
 if "history" not in st.session_state:
@@ -58,15 +83,10 @@ with st.sidebar:
     st.title("UI Controls")
     
     # Theme Toggle
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("🌙 dark", key="theme_dark", use_container_width=True):
-            st.session_state.theme = "dark"
-            st.rerun()
-    with col2:
-        if st.button("☀️ light", key="theme_light", use_container_width=True):
-            st.session_state.theme = "light"
-            st.rerun()
+    theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.get("theme", "dark") == "dark" else 1, horizontal=True, label_visibility="collapsed")
+    if theme_choice != st.session_state.get("theme", "dark"):
+        st.session_state.theme = theme_choice
+        st.rerun()
     
     st.markdown("---")
     
@@ -140,16 +160,17 @@ if theme == "dark":
 
     /* Header banner */
     .header {
-        background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
+        background: linear-gradient(135deg, #1e293b, #0f4a46);
         padding: 35px; border-radius: 20px; color: white; margin-bottom: 25px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     }
 
     /* Info cards */
     .card {
-        background: rgba(255,255,255,0.06);
+        background: rgba(255,255,255,0.05);
         padding: 20px; border-radius: 15px;
         text-align: center; font-weight: 600;
-        border: 1px solid rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.05);
     }
 
     /* Buttons */
@@ -186,7 +207,7 @@ else:
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #f8fafc, #f1f5f9) !important;
+        background: linear-gradient(135deg, #dbeafe, #ccfbf1) !important;
         border-right: 1px solid #e2e8f0;
     }
     [data-testid="stSidebar"] * { color: #1e293b !important; }
@@ -206,26 +227,27 @@ else:
 
     /* ── Glass card ── */
     .glass {
-        background: #ffffff;
+        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
         padding: 25px; border-radius: 18px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
     }
 
     /* ── Header banner ── */
     .header {
-        background: linear-gradient(135deg, #3b82f6, #06b6d4);
-        padding: 35px; border-radius: 20px; color: white; margin-bottom: 25px;
-        box-shadow: 0 8px 24px rgba(59,130,246,0.2);
+        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
+        padding: 35px; border-radius: 20px; color: #0f172a !important; margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
+    .header h1, .header p { color: #0f172a !important; }
 
     /* ── Info cards ── */
     .card {
-        background: #ffffff;
+        background: linear-gradient(135deg, #dbeafe, #ccfbf1);
         padding: 20px; border-radius: 15px;
         text-align: center; font-weight: 600;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.02);
         color: #1e293b !important;
     }
 
@@ -331,16 +353,7 @@ with tab1:
     # ================= ANALYSIS =================
     if analyze and review.strip():
 
-        with torch.no_grad():
-            inputs = tokenizer(review, return_tensors="pt", truncation=True, padding=True)
-            outputs = model(**inputs)
-
-        probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-        pred = torch.argmax(probs).item()
-        confidence = probs[pred].item()
-
-        sentiment = get_sentiment(pred, confidence)
-        neg, neu, pos = extract_probs(probs)
+        sentiment, confidence, neg, neu, pos = run_inference(review)
 
         result = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -443,29 +456,45 @@ with tab1:
 
 with tab2:
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📤 Upload File for Batch Analysis")
+    st.subheader("📥 Batch Analysis Input")
     
-    uploaded_file = st.file_uploader("Choose a CSV or TXT file", type=["csv", "txt"], key="batch_upload")
+    input_method = st.radio("Choose input method:", ["Paste Text", "Upload File"], horizontal=True)
     
-    if uploaded_file is not None:
-        try:
-            # Handle different file types
-            if uploaded_file.type == "text/plain":
-                # For TXT files, read line by line
-                content = uploaded_file.read().decode("utf-8")
-                texts = [line.strip() for line in content.split('\n') if line.strip()]
+    df_input = None
+    
+    if input_method == "Paste Text":
+        batch_text = st.text_area("Paste reviews (one per line)", height=200, placeholder="Enter multiple reviews here...\nEach line will be treated as a separate review.")
+        if batch_text:
+            texts = [line.strip() for line in batch_text.split('\n') if line.strip()]
+            if texts:
                 df_input = pd.DataFrame({"text": texts})
-            else:
-                # For CSV files
-                df_input = pd.read_csv(uploaded_file)
-            
-            # Check if 'text' column exists
-            if 'text' not in df_input.columns:
-                st.error("❌ File must contain a 'text' column (for CSV) or one text per line (for TXT)")
-            else:
-                st.info(f"📋 Loaded {len(df_input)} rows for analysis")
+                st.info(f"📋 Loaded {len(df_input)} reviews for analysis")
+    else:
+        uploaded_file = st.file_uploader("Choose a CSV or TXT file", type=["csv", "txt"], key="batch_upload")
+        if uploaded_file is not None:
+            try:
+                # Handle different file types
+                if uploaded_file.type == "text/plain":
+                    # For TXT files, read line by line
+                    content = uploaded_file.read().decode("utf-8")
+                    texts = [line.strip() for line in content.split('\n') if line.strip()]
+                    df_input = pd.DataFrame({"text": texts})
+                else:
+                    # For CSV files
+                    df_input = pd.read_csv(uploaded_file)
                 
-                if st.button("🚀 Analyze Batch", use_container_width=True):
+                # Check if 'text' column exists
+                if 'text' not in df_input.columns:
+                    st.error("❌ File must contain a 'text' column (for CSV) or one text per line (for TXT)")
+                    df_input = None
+                else:
+                    st.info(f"📋 Loaded {len(df_input)} rows for analysis")
+            except Exception as e:
+                st.error(f"❌ Error processing file: {str(e)}")
+                df_input = None
+                
+    if df_input is not None and not df_input.empty:
+        if st.button("🚀 Analyze Batch", use_container_width=True):
                     progress_bar = st.progress(0)
                     results_batch = []
                     
@@ -473,15 +502,7 @@ with tab2:
                         text = str(row['text']).strip()
                         
                         if text:
-                            with torch.no_grad():
-                                inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-                                outputs = model(**inputs)
-                            probs = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-                            pred = torch.argmax(probs).item()
-                            confidence = probs[pred].item()
-                            
-                            sentiment = get_sentiment(pred, confidence)
-                            neg, neu, pos = extract_probs(probs)
+                            sentiment, confidence, neg, neu, pos = run_inference(text)
                             
                             results_batch.append({
                                 "text": text,
@@ -498,8 +519,7 @@ with tab2:
                     st.session_state.batch_results = results_batch
                     st.success(f"✅ Analyzed {len(results_batch)} texts successfully!")
         
-        except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
+
     
     st.markdown('</div>', unsafe_allow_html=True)
     
